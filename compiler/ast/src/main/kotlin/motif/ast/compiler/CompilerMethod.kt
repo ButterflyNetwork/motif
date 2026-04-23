@@ -82,7 +82,11 @@ class CompilerMethod(
         XProcessingEnv.Backend.KSP -> {
           val returnTypeMirror = (returnType as CompilerType).mirror
           if (returnTypeMirror.isError()) {
-            element.toKS().returnType == null
+            // KSP2: returnType is never null — it always resolves to Unit for void functions.
+            // Support both: null check (KSP1) and Unit-type check (KSP2).
+            val ksReturnType = element.toKS().returnType
+            ksReturnType == null ||
+                ksReturnType.resolve().declaration.qualifiedName?.asString() == "kotlin.Unit"
           } else {
             returnTypeMirror.isVoid()
           }
