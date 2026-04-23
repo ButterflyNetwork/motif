@@ -180,15 +180,14 @@ fun XType.hash(): Int =
     }
 
 fun XType.isInternal(): Boolean {
-  val ksType =
-      try {
-        Class.forName("androidx.room.compiler.processing.ksp.KspType")
-            ?.getDeclaredField("ksType")
-            ?.apply { isAccessible = true }
-            ?.get(this) as? KSType
-      } catch (throwable: Throwable) {
-        null
-      }
+  // Walk the runtime class hierarchy so this survives Room's internal renames between KSP1/KSP2.
+  val ksType = runCatching {
+    generateSequence<Class<*>>(this::class.java) { it.superclass }
+        .mapNotNull { clazz -> runCatching { clazz.getDeclaredField("ksType") }.getOrNull() }
+        .firstOrNull()
+        ?.apply { isAccessible = true }
+        ?.get(this) as? KSType
+  }.getOrNull()
   val isTypeInternal = ksType?.declaration?.isInternal() ?: false
   return isTypeInternal || typeArguments.any { it.isInternal() }
 }

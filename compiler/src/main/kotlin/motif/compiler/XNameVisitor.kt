@@ -23,13 +23,30 @@ import androidx.room.compiler.processing.compat.XConverters.toKS
 import androidx.room.compiler.processing.isArray
 import androidx.room.compiler.processing.isKotlinUnit
 import androidx.room.compiler.processing.isVoid
-import androidx.room.compiler.processing.ksp.KspTypeMapper
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeVariableName
 import com.squareup.javapoet.WildcardTypeName
 import com.uber.xprocessing.ext.isDeclaredType
 import com.uber.xprocessing.ext.isEnum
 import com.uber.xprocessing.ext.isPrimitive
+
+// Maps Kotlin primitive qualified names to their boxed Java simple names.
+// Replaces the dependency on the internal Room KspTypeMapper class.
+private val kotlinPrimitiveToBoxedSimpleName =
+    mapOf(
+        "kotlin.Boolean" to "Boolean",
+        "kotlin.Byte" to "Byte",
+        "kotlin.Short" to "Short",
+        "kotlin.Int" to "Integer",
+        "kotlin.Long" to "Long",
+        "kotlin.Char" to "Character",
+        "kotlin.Float" to "Float",
+        "kotlin.Double" to "Double",
+        "kotlin.UByte" to "UByte",
+        "kotlin.UShort" to "UShort",
+        "kotlin.UInt" to "UInt",
+        "kotlin.ULong" to "ULong",
+    )
 
 object XNameVisitor {
 
@@ -64,12 +81,8 @@ object XNameVisitor {
 
   private fun visitDeclared(t: XType, p: Void? = null): String {
     t.typeElement?.kindName()
-    val javaQualifiedName =
-        KspTypeMapper.getPrimitiveJavaTypeName(t.typeElement?.qualifiedName.orEmpty())
-            ?.box()
-            ?.toString()
     val simpleName =
-        javaQualifiedName?.substringAfterLast(".")
+        kotlinPrimitiveToBoxedSimpleName[t.typeElement?.qualifiedName.orEmpty()]
             ?: if ("kotlin.collections.Mutable" in t.typeElement?.qualifiedName.orEmpty()) {
               t.typeElement?.name.orEmpty().replace("Mutable", "")
             } else {
