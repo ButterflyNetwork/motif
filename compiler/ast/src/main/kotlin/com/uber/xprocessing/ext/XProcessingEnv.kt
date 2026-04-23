@@ -24,13 +24,17 @@ import com.google.devtools.ksp.processing.Resolver
 val XProcessingEnv.typeUtils
   get() = XTypeUtils
 
-/** Provides access to KSP's resolver since XProcessing does not give us access */
+/**
+ * Provides access to KSP's resolver since XProcessing does not expose it publicly. Walks the
+ * runtime class hierarchy so this survives Room's internal class renames between KSP1 and KSP2.
+ */
 fun XProcessingEnv.resolver(): Resolver? =
     if (backend == XProcessingEnv.Backend.KSP) {
-      Class.forName("androidx.room.compiler.processing.ksp.KspProcessingEnv")
-          ?.getDeclaredField("_resolver")
+      generateSequence<Class<*>>(this::class.java) { it.superclass }
+          .mapNotNull { clazz -> runCatching { clazz.getDeclaredField("_resolver") }.getOrNull() }
+          .firstOrNull()
           ?.apply { isAccessible = true }
-          ?.get(this) as Resolver?
+          ?.get(this) as? Resolver
     } else {
       null
     }
